@@ -41,10 +41,16 @@ button {
     border-radius: 4px;
     cursor: pointer;
     font-size: 16px;
+    transition: background-color 0.2s ease-in-out;
 }
 
 button:hover {
     background-color: #0056b3;
+}
+
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
 }
 
 ul {
@@ -54,13 +60,85 @@ ul {
 
 li {
     background-color: #eee;
-    padding: 10px;
+    padding: 10px 15px;
     margin-bottom: 8px;
     border-radius: 4px;
     border-left: 5px solid #007bff;
+    display: flex; /* Use flexbox for layout */
+    justify-content: space-between; /* Pushes actions to the right */
+    align-items: center; /* Vertically align items */
+    flex-wrap: wrap; 
 }
+
+/* Container for text, timestamp, and score */
+li .todo-content {
+    flex-grow: 1; /* Allow this to take up available space */
+    display: flex;
+    flex-direction: column; /* Stack text, timestamp, score vertically */
+    margin-right: 10px;
+}
+
+li .todo-text {
+    font-weight: bold; /* Make todo text a bit bolder */
+}
+li .todo-timestamp {
+    font-size: 0.8em;
+    color: #555;
+    margin-top: 2px; /* A little space above the score */
+    white-space: nowrap;
+}
+
+li .todo-score { /* Style for the score */
+    font-size: 0.8em;
+    color: #28a745; /* Green for score */
+    margin-top: 2px; /* A little space above the score */
+    white-space: nowrap;
+}
+
+li .todo-actions {
+    display: flex; /* Keep actions in a row */
+    align-items: center; /* Align buttons nicely */
+    flex-shrink: 0; /* Prevent actions from shrinking */
+}
+
+li .todo-actions button {
+    margin-left: 8px;
+    padding: 5px 10px;
+    font-size: 14px;
+}
+
+/* ... (rest of the styles for buttons, initialization status etc. remain the same) ... */
+
+li .todo-actions .edit-btn {
+    background-color: #ffc107; 
+    color: #333;
+}
+li .todo-actions .edit-btn:hover {
+    background-color: #e0a800;
+}
+
+li .todo-actions .delete-btn {
+    background-color: #dc3545; 
+}
+li .todo-actions .delete-btn:hover {
+    background-color: #c82333;
+}
+
 
 #initialization-status {
     margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 4px;
     font-style: italic;
+    background-color: #e9ecef; 
+    border: 1px solid #ced4da;
+}
+
+#search-results-list li {
+    border-left-color: #28a745; 
+    font-size: 0.95em;
+}
+
+.hidden {
+    display: none !important;
 }

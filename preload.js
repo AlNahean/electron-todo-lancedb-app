@@ -8,4 +8,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.on("initialization-error", (_event, errorMsg) =>
       callback(errorMsg)
     ),
+  updateTodo: (id, newText) => ipcRenderer.invoke("update-todo", id, newText),
+  deleteTodo: (id) => ipcRenderer.invoke("delete-todo", id),
+  onInitializationSuccess: (callback) =>
+    ipcRenderer.on("initialization-success", () => callback()),
 });

@@ -68,8 +68,8 @@ async function initializeApp() {
       const dummyVector = new Array(VECTOR_DIMENSION).fill(0.0);
       const dummyData = [
         {
-          id: "dummy_id",
-          text: "dummy_text",
+          id: "dummy_id_init",
+          text: "dummy_text_init",
           vector: dummyVector,
           timestamp: Date.now(),
         },
@@ -82,7 +82,7 @@ async function initializeApp() {
         console.log(
           `Table ${TABLE_NAME} created via schema inference from dummy data.`
         );
-        await table.delete('id = "dummy_id"');
+        await table.delete('id = "dummy_id_init"');
         console.log("Dummy data deleted from the newly created table.");
       } catch (creationError) {
         console.error(
@@ -91,40 +91,10 @@ async function initializeApp() {
         );
         throw creationError;
       }
-
-      const createOptions = { schema: tableSchemaToUse };
-
-      console.log("---- Pre-createTable Call ----");
-      console.log(
-        "Using createOptions:",
-        JSON.stringify(
-          createOptions,
-          (key, value) => {
-            if (value instanceof arrow.Schema) return "[Arrow Schema Object]";
-            if (value instanceof arrow.Field)
-              return `[Arrow Field: ${value.name}]`;
-            if (value instanceof arrow.DataType)
-              return `[Arrow DataType: ${value.constructor.name}]`;
-            return value;
-          },
-          2
-        )
-      );
-      console.log(
-        "Is schema in options an arrow.Schema?",
-        createOptions.schema instanceof arrow.Schema
-      );
-      console.log("--------------------------------");
-
-      try {
-        table = await db.createTable(TABLE_NAME, undefined, createOptions);
-      } catch (creationError) {
-        console.error("Error during db.createTable call:", creationError);
-        console.error("Schema object used at time of error:", tableSchemaToUse);
-        console.error("Options object used at time of error:", createOptions);
-        throw creationError;
-      }
-      console.log(`Table ${TABLE_NAME} created.`);
+    }
+    console.log("LanceDB table ready.");
+    if (mainWindow) {
+      mainWindow.webContents.send("initialization-success");
     }
   } catch (error) {
     console.error("Failed to initialize app components:", error);
@@ -145,7 +115,7 @@ async function getEmbedding(text) {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 800,
-    height: 600,
+    height: 700,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -160,8 +130,8 @@ function createWindow() {
 }
 
 app.on("ready", async () => {
-  await initializeApp();
   createWindow();
+  await initializeApp();
 });
 
 app.on("window-all-closed", () => {
@@ -182,8 +152,9 @@ ipcMain.handle("add-todo", async (event, todoText) => {
   }
   try {
     const vector = await getEmbedding(todoText);
+    const todoId = nanoidFn();
     const todoItem = {
-      id: nanoidFn(),
+      id: todoId,
       text: todoText,
       vector: vector,
       timestamp: Date.now(),
@@ -208,21 +179,28 @@ ipcMain.handle("get-todos", async () => {
     return { success: false, error: "Database not initialized.", todos: [] };
   }
   try {
+    // For vectordb, to get records without a specific vector search,
+    // you still use .search() but without providing a query vector.
+    // Then apply .select() and .limit().
+    // This should retrieve records based on insertion order or some internal order
+    // up to the specified limit if no other ordering is applied.
     const results = await table
-      .search()
-      .limit(100)
+      .search() // No query vector implies fetching based on other criteria or all
+      .limit(500) // Get up to 500 todos
       .select(["id", "text", "timestamp"])
-      .execute();
+      .execute(); // .execute() is typically used with search()
+
+    // The results from .execute() should already be an array of objects.
     const todos = results
       .map((r) => ({ id: r.id, text: r.text, timestamp: r.timestamp }))
-      .sort((a, b) => b.timestamp - a.timestamp);
+      .sort((a, b) => b.timestamp - a.timestamp); // Sort by newest first
+
     return { success: true, todos };
   } catch (error) {
     console.error("Error getting todos:", error);
     return { success: false, error: error.message, todos: [] };
   }
 });
-
 ipcMain.handle("search-todos", async (event, query) => {
   if (!table || !embedder) {
     return {
@@ -236,12 +214,12 @@ ipcMain.handle("search-todos", async (event, query) => {
   }
   try {
     const queryVector = await getEmbedding(query);
-    const results = await table
+    const searchResultsRaw = await table
       .search(queryVector)
       .limit(10)
       .select(["id", "text", "timestamp"])
       .execute();
-    const searchResults = results.map((r) => ({
+    const searchResults = searchResultsRaw.map((r) => ({
       id: r.id,
       text: r.text,
       timestamp: r.timestamp,
@@ -251,5 +229,50 @@ ipcMain.handle("search-todos", async (event, query) => {
   } catch (error) {
     console.error("Error searching todos:", error);
     return { success: false, error: error.message, results: [] };
+  }
+});
+
+ipcMain.handle("update-todo", async (event, todoId, newText) => {
+  if (!table || !embedder) {
+    return { success: false, error: "Database or embedder not initialized." };
+  }
+  try {
+    const newVector = await getEmbedding(newText);
+    const newTimestamp = Date.now();
+    const updatedTodoItemData = {
+      id: todoId,
+      text: newText,
+      vector: newVector,
+      timestamp: newTimestamp,
+    };
+    await table.delete(`id = "${todoId}"`);
+    console.log(`Deleted old todo with id: ${todoId}`);
+    await table.add([updatedTodoItemData]);
+    console.log(`Added updated todo with id: ${todoId}`);
+    return {
+      success: true,
+      item: {
+        id: todoId,
+        text: newText,
+        timestamp: newTimestamp,
+      },
+    };
+  } catch (error) {
+    console.error(`Error updating todo ${todoId}:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("delete-todo", async (event, todoId) => {
+  if (!table) {
+    return { success: false, error: "Database not initialized." };
+  }
+  try {
+    await table.delete(`id = "${todoId}"`);
+    console.log(`Deleted todo with id: ${todoId}`);
+    return { success: true, id: todoId };
+  } catch (error) {
+    console.error(`Error deleting todo ${todoId}:`, error);
+    return { success: false, error: error.message };
   }
 });

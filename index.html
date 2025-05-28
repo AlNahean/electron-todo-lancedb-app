@@ -11,9 +11,12 @@
         <h1>Todo List with Semantic Search</h1>
         <div id="initialization-status">Initializing...</div>
 
-        <div class="input-group">
+    <div class="input-group">
             <input type="text" id="todo-input" placeholder="Enter a new todo">
+            <input type="hidden" id="editing-todo-id">
             <button id="add-todo-btn">Add Todo</button>
+            <button id="update-todo-btn" class="hidden">Update Todo</button>
+            <button id="cancel-edit-btn" class="hidden">Cancel</button>
         </div>
 
         <div class="input-group">
