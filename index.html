@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Todo App</title>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self';">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Todo List with Semantic Search</h1>
+        <div id="initialization-status">Initializing...</div>
+
+        <div class="input-group">
+            <input type="text" id="todo-input" placeholder="Enter a new todo">
+            <button id="add-todo-btn">Add Todo</button>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="search-input" placeholder="Search todos semantically">
+            <button id="search-todo-btn">Search</button>
+        </div>
+
+        <h2>Todos</h2>
+        <ul id="todo-list">
+            <!-- Todos will be populated here -->
+        </ul>
+
+        <h2>Search Results</h2>
+        <ul id="search-results-list">
+            <!-- Search results will be populated here -->
+        </ul>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
