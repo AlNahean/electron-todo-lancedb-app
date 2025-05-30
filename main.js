@@ -201,7 +201,7 @@ ipcMain.handle("get-todos", async () => {
     return { success: false, error: error.message, todos: [] };
   }
 });
-ipcMain.handle("search-todos", async (event, query) => {
+ipcMain.handle("search-todos", async (event, query, startDate, endDate) => {
   if (!table || !embedder) {
     return {
       success: false,
@@ -214,8 +214,31 @@ ipcMain.handle("search-todos", async (event, query) => {
   }
   try {
     const queryVector = await getEmbedding(query);
-    const searchResultsRaw = await table
-      .search(queryVector)
+    let lanceQuery = table.search(queryVector);
+
+    const filters = [];
+    if (startDate) {
+      // Expected format: YYYY-MM-DD
+      // Get timestamp for 00:00:00 UTC on the start date
+      const startTimestamp = new Date(startDate + "T00:00:00.000Z").getTime();
+      if (!isNaN(startTimestamp)) {
+        filters.push(`timestamp >= ${startTimestamp}`);
+      }
+    }
+    if (endDate) {
+      // Expected format: YYYY-MM-DD
+      // Get timestamp for 23:59:59.999 UTC on the end date
+      const endTimestamp = new Date(endDate + "T23:59:59.999Z").getTime();
+      if (!isNaN(endTimestamp)) {
+        filters.push(`timestamp <= ${endTimestamp}`);
+      }
+    }
+
+    if (filters.length > 0) {
+      lanceQuery = lanceQuery.where(filters.join(" AND "));
+    }
+
+    const searchResultsRaw = await lanceQuery
       .limit(10)
       .select(["id", "text", "timestamp"])
       .execute();
@@ -229,6 +252,47 @@ ipcMain.handle("search-todos", async (event, query) => {
   } catch (error) {
     console.error("Error searching todos:", error);
     return { success: false, error: error.message, results: [] };
+  }
+});
+
+ipcMain.handle("seed-demo-data", async () => {
+  if (!table || !embedder || !nanoidFn) {
+    return {
+      success: false,
+      error: "Core components (DB, embedder, nanoid) not initialized.",
+    };
+  }
+  try {
+    const demoTodos = [];
+    const numItems = 100;
+    const today = new Date();
+    console.log(`Starting to generate ${numItems} demo todos.`);
+    for (let i = 0; i < numItems; i++) {
+      const text = `Demo task ${i + 1}: Explore ${
+        ["Mars", "Jupiter", "Saturn", "ancient ruins", "deep sea"][i % 5]
+      } with keyword ${nanoidFn(6)}`;
+      const vector = await getEmbedding(text);
+      const randomPastDay = new Date(today);
+      randomPastDay.setDate(today.getDate() - Math.floor(Math.random() * 90)); // Spread over last 90 days
+      randomPastDay.setHours(
+        Math.floor(Math.random() * 24),
+        Math.floor(Math.random() * 60),
+        Math.floor(Math.random() * 60)
+      );
+
+      demoTodos.push({
+        id: nanoidFn(),
+        text: text,
+        vector: vector,
+        timestamp: randomPastDay.getTime(),
+      });
+    }
+    await table.add(demoTodos);
+    console.log(`${demoTodos.length} demo todos added to the database.`);
+    return { success: true, count: demoTodos.length };
+  } catch (error) {
+    console.error("Error seeding demo data:", error);
+    return { success: false, error: error.message };
   }
 });
 

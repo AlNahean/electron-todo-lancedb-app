@@ -48,6 +48,15 @@ button:hover {
     background-color: #0056b3;
 }
 
+button.secondary-action-btn {
+    background-color: #6c757d; /* A neutral grey */
+    margin-left: 10px; /* Add some space if next to other elements */
+}
+
+button.secondary-action-btn:hover {
+    background-color: #5a6268;
+}
+
 button:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
@@ -141,4 +150,94 @@ li .todo-actions .delete-btn:hover {
 
 .hidden {
     display: none !important;
+}
+
+.search-filters {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+.search-filters label {
+    margin-right: 5px;
+    margin-left: 10px;
+}
+.search-filters label:first-of-type {
+    margin-left: 0;
+}
+
+.search-filters input[type="date"] {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px; /* Slightly smaller for date inputs */
+    margin-right: 10px; /* Space before the next element (like Clear button) */
+}
+.search-filters #clear-search-filters-btn {
+    margin-left: auto; /* Pushes the clear button to the far right of the flex container */
+}
+
+.controls-group {
+    margin-top: 20px;
+    margin-bottom: 15px;
+}
+
+/* Tab Styles */
+.tabs-container {
+    margin-top: 20px;
+}
+
+.tab-navigation {
+    list-style-type: none;
+    padding: 0;
+    margin: 0 0 0px 0; /* No bottom margin, border will act as separator */
+    display: flex;
+    border-bottom: 2px solid #007bff; /* Blue line under tabs */
+}
+
+.tab-navigation .tab-button {
+    padding: 10px 20px;
+    cursor: pointer;
+    background-color: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-bottom: none; /* Remove bottom border for buttons */
+    border-radius: 4px 4px 0 0; /* Rounded top corners */
+    margin-right: 5px;
+    font-size: 16px;
+    color: #495057;
+    position: relative;
+    bottom: -2px; /* Align with the container's border-bottom */
+}
+
+.tab-navigation .tab-button:hover {
+    background-color: #ced4da;
+}
+
+.tab-navigation .tab-button.active {
+    background-color: #fff; /* White background for active tab */
+    border-color: #007bff #007bff #fff; /* Match container border, white bottom */
+    color: #007bff;
+    font-weight: bold;
+}
+
+.tab-content {
+    display: none; /* Hide inactive tab content */
+    padding: 15px;
+    border: 1px solid #dee2e6; /* Optional: border around content area */
+    border-top: none; /* No top border as it's handled by nav or button */
+    background-color: #fff;
+    border-radius: 0 0 4px 4px; /* Rounded bottom corners */
+}
+
+.tab-content.active {
+    display: block; /* Show active tab content */
+}
+
+/* Adjust h2 margin inside tabs if needed */
+.tab-content h2 {
+    margin-top: 0; /* Remove default top margin for h2 inside tab */
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 15px;
 }

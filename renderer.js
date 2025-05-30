@@ -5,6 +5,16 @@ const searchInput = document.getElementById("search-input");
 const searchTodoBtn = document.getElementById("search-todo-btn");
 const searchResultsList = document.getElementById("search-results-list");
 const initializationStatus = document.getElementById("initialization-status");
+const seedDataBtn = document.getElementById("seed-data-btn");
+const searchStartDateInput = document.getElementById("search-start-date");
+const clearSearchFiltersBtn = document.getElementById(
+  "clear-search-filters-btn"
+);
+const searchEndDateInput = document.getElementById("search-end-date");
+
+// --- NEW: Tab elements ---
+const tabButtons = document.querySelectorAll(".tab-navigation .tab-button");
+const tabContents = document.querySelectorAll(".tabs-container .tab-content");
 
 // --- NEW: Elements for edit mode ---
 const editingTodoIdInput = document.getElementById("editing-todo-id");
@@ -26,6 +36,11 @@ window.electronAPI.onInitializationError((errorMsg) => {
   searchTodoBtn.disabled = true;
   updateTodoBtn.disabled = true;
   cancelEditBtn.disabled = true;
+  seedDataBtn.disabled = true;
+  searchStartDateInput.disabled = true;
+  searchEndDateInput.disabled = true;
+  clearSearchFiltersBtn.disabled = true;
+  tabButtons.forEach((button) => (button.style.pointerEvents = "none"));
 });
 
 window.electronAPI.onInitializationSuccess(() => {
@@ -36,8 +51,14 @@ window.electronAPI.onInitializationSuccess(() => {
   addTodoBtn.disabled = false;
   searchInput.disabled = false;
   searchTodoBtn.disabled = false;
+  seedDataBtn.disabled = false;
+  searchStartDateInput.disabled = false;
+  searchEndDateInput.disabled = false;
+  clearSearchFiltersBtn.disabled = false;
+  tabButtons.forEach((button) => (button.style.pointerEvents = "auto"));
   // Update/Cancel buttons remain hidden until edit mode is entered
   fetchTodos();
+  showTab("todos-tab"); // Show default tab
 });
 
 addTodoBtn.addEventListener("click", async () => {
@@ -118,11 +139,49 @@ cancelEditBtn.addEventListener("click", () => {
 
 searchTodoBtn.addEventListener("click", async () => {
   const query = searchInput.value.trim();
-  const result = await window.electronAPI.searchTodos(query);
+  const startDate = searchStartDateInput.value; // YYYY-MM-DD or empty
+  const endDate = searchEndDateInput.value; // YYYY-MM-DD or empty
+
+  if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+    alert("End date cannot be before start date.");
+    return;
+  }
+
+  // Pass null if dates are not set, so backend can ignore them
+  const result = await window.electronAPI.searchTodos(
+    query,
+    startDate || null,
+    endDate || null
+  );
   if (result.success) {
+    showTab("search-results-tab"); // Switch to search results tab
     renderSearchResults(result.results);
   } else {
     alert(`Error searching todos: ${result.error || "Unknown error"}`);
+    showTab("search-results-tab"); // Still switch to show error or empty state
+    searchResultsList.innerHTML = `<li>Error: ${
+      result.error || "Unknown error"
+    }</li>`;
+  }
+});
+
+clearSearchFiltersBtn.addEventListener("click", () => {
+  if (editingTodoIdInput.value !== "") {
+    alert("Please finish or cancel your current edit before clearing filters.");
+    return;
+  }
+  searchInput.value = "";
+  searchStartDateInput.value = "";
+  searchEndDateInput.value = "";
+  searchResultsList.innerHTML = ""; // Clear the displayed search results
+
+  // Optionally, if on search tab and it's now empty, switch to todos tab
+  if (
+    document
+      .querySelector('.tab-button[data-tab="search-results-tab"]')
+      .classList.contains("active")
+  ) {
+    showTab("todos-tab");
   }
 });
 
@@ -182,6 +241,12 @@ function enterEditMode(
   searchInput.disabled = true;
   searchTodoBtn.disabled = true;
   document
+    .querySelectorAll('.search-filters input[type="date"]')
+    .forEach((input) => (input.disabled = true));
+  // Disable tab switching during edit
+  tabButtons.forEach((button) => (button.style.pointerEvents = "none"));
+
+  document
     .querySelectorAll("#todo-list li button, #search-results-list li button")
     .forEach((b) => {
       if (b !== updateTodoBtn && b !== cancelEditBtn) b.disabled = true;
@@ -205,6 +270,11 @@ function exitEditMode() {
     // Only if not in init error state
     searchInput.disabled = false;
     searchTodoBtn.disabled = false;
+    document
+      .querySelectorAll('.search-filters input[type="date"]')
+      .forEach((input) => (input.disabled = false));
+    // Re-enable tab switching
+    tabButtons.forEach((button) => (button.style.pointerEvents = "auto"));
     document
       .querySelectorAll("#todo-list li button, #search-results-list li button")
       .forEach((b) => (b.disabled = false));
@@ -335,4 +405,70 @@ function renderSearchResults(results) {
       true
     );
   });
+}
+
+seedDataBtn.addEventListener("click", async () => {
+  if (editingTodoIdInput.value !== "") {
+    alert("Please finish or cancel your current edit before seeding data.");
+    return;
+  }
+  if (
+    confirm(
+      "Are you sure you want to add 100 demo todos? This can clutter your list."
+    )
+  ) {
+    seedDataBtn.disabled = true;
+    seedDataBtn.textContent = "Seeding...";
+    const result = await window.electronAPI.seedDemoData();
+    if (result.success) {
+      alert(
+        `${result.count} demo todos seeded successfully! Refreshing list...`
+      );
+      showTab("todos-tab"); // Switch to todos tab to see new data
+      fetchTodos(); // Refresh the main todo list
+    } else {
+      alert(`Error seeding data: ${result.error || "Unknown error"}`);
+    }
+    seedDataBtn.disabled = false;
+    seedDataBtn.textContent = "Seed 100 Demo Todos";
+  }
+});
+
+// --- NEW: Tab Switching Logic ---
+tabButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    if (editingTodoIdInput.value !== "") {
+      alert("Please finish or cancel your current edit before switching tabs.");
+      return;
+    }
+    showTab(button.dataset.tab);
+  });
+});
+
+function showTab(tabIdToShow) {
+  tabContents.forEach((content) => {
+    content.classList.remove("active");
+  });
+  tabButtons.forEach((button) => {
+    button.classList.remove("active");
+  });
+
+  const contentElementId = tabIdToShow + "-content";
+  const contentElement = document.getElementById(contentElementId);
+  if (contentElement) {
+    contentElement.classList.add("active");
+  } else {
+    console.error(
+      `Tab content element with ID "${contentElementId}" not found.`
+    );
+  }
+
+  const buttonElement = document.querySelector(
+    `.tab-button[data-tab="${tabIdToShow}"]`
+  );
+  if (buttonElement) {
+    buttonElement.classList.add("active");
+  } else {
+    console.error(`Tab button with data-tab "${tabIdToShow}" not found.`);
+  }
 }
